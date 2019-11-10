@@ -2036,7 +2036,11 @@ public abstract class AbstractQueuedSynchronizer
         public final void await() throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
+
+            //创建新节点，并加入到条件队列中
             Node node = addConditionWaiter();
+
+            //完全释放
             int savedState = fullyRelease(node);
             int interruptMode = 0;
             while (!isOnSyncQueue(node)) {
