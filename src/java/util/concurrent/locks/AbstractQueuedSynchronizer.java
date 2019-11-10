@@ -1666,6 +1666,10 @@ public abstract class AbstractQueuedSynchronizer
      * @param node the node
      * @return true if successfully transferred (else the node was
      * cancelled before signal)
+     *
+     *
+     * 返回true: 成功把node从条件队列中转移到同步队列中
+     * 返回false: 在转移前node取消获取锁
      */
     final boolean transferForSignal(Node node) {
         /*
@@ -1866,13 +1870,21 @@ public abstract class AbstractQueuedSynchronizer
          * null. Split out from signal in part to encourage compilers
          * to inline the case of no waiters.
          * @param first (non-null) the first node on condition queue
+         *
+         *
+         *
+         *
          */
         private void doSignal(Node first) {
             do {
+                //如果first后面没有兄弟了，则重置fw  lw
                 if ( (firstWaiter = first.nextWaiter) == null)
                     lastWaiter = null;
                 first.nextWaiter = null;
-            } while (!transferForSignal(first) &&
+            }
+
+            //循环条件是：如果没有转移成功并且这个时候条件队列有新的兄弟进来了
+            while (!transferForSignal(first) &&
                      (first = firstWaiter) != null);
         }
 
@@ -1935,10 +1947,14 @@ public abstract class AbstractQueuedSynchronizer
          *         returns {@code false}
          */
         public final void signal() {
+
+            //必须持有独占锁，否则抛异常
             if (!isHeldExclusively())
                 throw new IllegalMonitorStateException();
+
             Node first = firstWaiter;
             if (first != null)
+                //signal 条件队列中的第一个线程
                 doSignal(first);
         }
 
@@ -2040,14 +2056,24 @@ public abstract class AbstractQueuedSynchronizer
             //创建新节点，并加入到条件队列中
             Node node = addConditionWaiter();
 
-            //完全释放
+            //完全释放锁。
             int savedState = fullyRelease(node);
             int interruptMode = 0;
+
+            //如果节点不在同步队列中，则一直park。第一次循环肯定不在，但后面可能在
             while (!isOnSyncQueue(node)) {
                 LockSupport.park(this);
+
+                //另外一种方式跳出循环（如果线程不是由于操作系统调度算法自然唤醒的，则跳出循环）
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;
             }
+
+            //执行到这的可能原因：
+            //1. 在同步队列中
+            //2. 其他线程执行了本线程的interrupt方法  (interruptMode=THROW_IE)
+            //3. 其他线程执行了signal了本线程 (interruptMode=REINTERRUPT)
+
             if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
                 interruptMode = REINTERRUPT;
             if (node.nextWaiter != null) // clean up if cancelled
