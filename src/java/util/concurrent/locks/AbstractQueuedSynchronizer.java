@@ -376,6 +376,14 @@ public abstract class AbstractQueuedSynchronizer
      * Scherer and Michael Scott, along with members of JSR-166
      * expert group, for helpful ideas, discussions, and critiques
      * on the design of this class.
+     *
+     *
+     * 节点保存的数据有5个：
+     * 1. prev
+     * 2. next
+     * 3. thread
+     * 4. waitStatus
+     * 5. nextWaiter
      */
     static final class Node {
         /** Marker to indicate a node is waiting in shared mode */
@@ -386,13 +394,18 @@ public abstract class AbstractQueuedSynchronizer
         /** waitStatus value to indicate thread has cancelled */
         static final int CANCELLED =  1;
         /** waitStatus value to indicate successor's thread needs unparking */
+
+        //表示后一个节点需要unpark
         static final int SIGNAL    = -1;
         /** waitStatus value to indicate thread is waiting on condition */
+
+        //表示当前节点在条件队列中
         static final int CONDITION = -2;
         /**
          * waitStatus value to indicate the next acquireShared should
          * unconditionally propagate
          */
+        //????
         static final int PROPAGATE = -3;
 
         /**
@@ -404,20 +417,36 @@ public abstract class AbstractQueuedSynchronizer
          *               first indicate they need a signal,
          *               then retry the atomic acquire, and then,
          *               on failure, block.
+         *
+         *               表示当前节点的后一个节点是阻塞状态。所以当当前节点释放锁或者取消的时候
+         *               需要unpark后一个节点。
+         *
          *   CANCELLED:  This node is cancelled due to timeout or interrupt.
          *               Nodes never leave this state. In particular,
          *               a thread with cancelled node never again blocks.
+         *
+         *               什么时候会处于这种状态
+         *               1. 在获取锁的期间超时或者被中断，于是取消获得锁
+         *               2. 释放锁不成功而被取消
+         *
          *   CONDITION:  This node is currently on a condition queue.
          *               It will not be used as a sync queue node
          *               until transferred, at which time the status
          *               will be set to 0. (Use of this value here has
          *               nothing to do with the other uses of the
          *               field, but simplifies mechanics.)
+         *
+         *               表示当前节点在条件队列中。
+         *               当这个节点从条件队列成功转移到同步队列的时候，会被设置为0
+         *
          *   PROPAGATE:  A releaseShared should be propagated to other
          *               nodes. This is set (for head node only) in
          *               doReleaseShared to ensure propagation
          *               continues, even if other operations have
          *               since intervened.
+         *
+         *               没搞明白
+         *
          *   0:          None of the above
          *
          * The values are arranged numerically to simplify use.
@@ -428,6 +457,13 @@ public abstract class AbstractQueuedSynchronizer
          * The field is initialized to 0 for normal sync nodes, and
          * CONDITION for condition nodes.  It is modified using CAS
          * (or when possible, unconditional volatile writes).
+         *
+         *
+         *
+         *
+         * ws为CANCELLED的几种情况：
+         *   1. 在竞争锁的期间超时或者被中断
+         *   2. 释放锁不成功
          */
         volatile int waitStatus;
 
@@ -474,6 +510,9 @@ public abstract class AbstractQueuedSynchronizer
          * re-acquire. And because conditions can only be exclusive,
          * we save a field by using special value to indicate shared
          * mode.
+         *
+         * 如果这个节点在条件队列中，代表下一个节点。
+         * 如果在同步队列中，代表要获取排它锁（null）还是共享锁(Shared)
          */
         Node nextWaiter;
 
@@ -579,6 +618,8 @@ public abstract class AbstractQueuedSynchronizer
      * Inserts node into queue, initializing if necessary. See picture above.
      * @param node the node to insert
      * @return node's predecessor
+     *
+     * 把节点插入到同步队列中，返回前一个节点
      */
     private Node enq(final Node node) {
         for (;;) {
@@ -601,6 +642,8 @@ public abstract class AbstractQueuedSynchronizer
      *
      * @param mode Node.EXCLUSIVE for exclusive, Node.SHARED for shared
      * @return the new node
+     *
+     * 创建节点并加入到同步队列中，返回创建的节点
      */
     private Node addWaiter(Node mode) {
         Node node = new Node(Thread.currentThread(), mode);
@@ -853,6 +896,9 @@ public abstract class AbstractQueuedSynchronizer
      * @param node the node
      * @param arg the acquire argument
      * @return {@code true} if interrupted while waiting
+     *
+     * 退出这个方法的时候，说明要么成功获得排它锁，要么获取失败并已经取消获取锁
+     * 返回的是：等待过程中是否被中断。
      */
     final boolean acquireQueued(final Node node, int arg) {
         boolean failed = true;
@@ -1669,14 +1715,17 @@ public abstract class AbstractQueuedSynchronizer
      *
      *
      * 返回true: 成功把node从条件队列中转移到同步队列中
-     * 返回false: 在转移前node取消获取锁
+     * 返回false: 在转移前node的状态为取消状态。 什么情况回事取消状态？ 节点在await方法的时候，成功加入到了条件队列，但释放锁失败
      */
     final boolean transferForSignal(Node node) {
         /*
          * If cannot change waitStatus, the node has been cancelled.
          */
+
+        //什么情况下回返回false
         if (!compareAndSetWaitStatus(node, Node.CONDITION, 0))
             return false;
+
 
         /*
          * Splice onto queue and try to set waitStatus of predecessor to
@@ -1684,8 +1733,12 @@ public abstract class AbstractQueuedSynchronizer
          * attempt to set waitStatus fails, wake up to resync (in which
          * case the waitStatus can be transiently and harmlessly wrong).
          */
+
+        //把节点加入到同步队列中，返回前一个节点
         Node p = enq(node);
         int ws = p.waitStatus;
+
+        //如果节点的状态变为了已取消 或者 没有成功更改前一个节点的状态为signal
         if (ws > 0 || !compareAndSetWaitStatus(p, ws, Node.SIGNAL))
             LockSupport.unpark(node.thread);
         return true;
@@ -1830,6 +1883,7 @@ public abstract class AbstractQueuedSynchronizer
      *
      * <p>This class is Serializable, but all fields are transient,
      * so deserialized conditions have no waiters.
+     *
      */
     public class ConditionObject implements Condition, java.io.Serializable {
         private static final long serialVersionUID = 1173984872572414699L;
@@ -1880,6 +1934,8 @@ public abstract class AbstractQueuedSynchronizer
                 //如果first后面没有兄弟了，则重置fw  lw
                 if ( (firstWaiter = first.nextWaiter) == null)
                     lastWaiter = null;
+
+                //把first节点从条件队列中移除
                 first.nextWaiter = null;
             }
 
@@ -1904,8 +1960,11 @@ public abstract class AbstractQueuedSynchronizer
 
         /**
          * Unlinks cancelled waiter nodes from condition queue.
-         * Called only while holding lock. This is called when
-         * cancellation occurred during condition wait, and upon
+         * 从条件队列中移除已被取消的节点
+         * Called only while holding lock.
+         * 只有在获得排它锁的情况下才能执行此方法
+         *
+         * This is called when cancellation occurred during condition wait, and upon
          * insertion of a new waiter when lastWaiter is seen to have
          * been cancelled. This method is needed to avoid garbage
          * retention in the absence of signals. So even though it may
@@ -1945,6 +2004,12 @@ public abstract class AbstractQueuedSynchronizer
          *
          * @throws IllegalMonitorStateException if {@link #isHeldExclusively}
          *         returns {@code false}
+         *
+         * 主要干了一件事：把条件队列中的第一个节点放到同步队列中。
+         * 如果转移失败，则从条件队列中移除并转移下一个，直到成功转移一个或条件队列中没有成员了
+         * 注意：所以有可能转移失败.
+         *
+         * 什么情况下会转移失败？ 节点状态为已取消。 什么情况下节点会是取消状态？ 节点在执行await方法时，成功加入到了条件队列，但释放锁的时候失败了。
          */
         public final void signal() {
 
@@ -1964,7 +2029,12 @@ public abstract class AbstractQueuedSynchronizer
          *
          * @throws IllegalMonitorStateException if {@link #isHeldExclusively}
          *         returns {@code false}
+         *
+         * 遍历条件队列中的所有节点，逐一放到同步队列中，知道条件队列为空
+         *
+         * 注意：有可能某些节点转移失败，甚至所以节点都失败
          */
+
         public final void signalAll() {
             if (!isHeldExclusively())
                 throw new IllegalMonitorStateException();
@@ -2048,6 +2118,12 @@ public abstract class AbstractQueuedSynchronizer
          *      {@link #acquire} with saved state as argument.
          * <li> If interrupted while blocked in step 4, throw InterruptedException.
          * </ol>
+         *
+         * 1. 如果当前线程有中断标志位，抛出中断异常
+         * 2. 加入添加队列中
+         * 3. 完全释放锁并保存加锁次数。如果释放锁失败，则抛出异常
+         * 4.
+         *
          */
         public final void await() throws InterruptedException {
             if (Thread.interrupted())
@@ -2056,8 +2132,10 @@ public abstract class AbstractQueuedSynchronizer
             //创建新节点，并加入到条件队列中
             Node node = addConditionWaiter();
 
-            //完全释放锁。
+            //完全释放锁。记录之前加锁的次数
             int savedState = fullyRelease(node);
+
+            //代码指向到这里，锁已经释放了，这个时候同步队列的线程又开始竞争锁了
             int interruptMode = 0;
 
             //如果节点不在同步队列中，则一直park。第一次循环肯定不在，但后面可能在
@@ -2071,13 +2149,19 @@ public abstract class AbstractQueuedSynchronizer
 
             //执行到这的可能原因：
             //1. 在同步队列中
-            //2. 其他线程执行了本线程的interrupt方法  (interruptMode=THROW_IE)
-            //3. 其他线程执行了signal了本线程 (interruptMode=REINTERRUPT)
+            //2. 在同步队列中并且其他线程执行了本线程的interrupt方法  (interruptMode=THROW_IE)
+            //3. 在同步队列中并且其他线程执行了signal了本线程 (interruptMode=REINTERRUPT)
 
+            //执行到这里时，排它锁可能还没有释放，也可能释放了
+
+            //尝试去获得锁，可能成功可能失败。如果失败，说有已经被取消获得锁
             if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
                 interruptMode = REINTERRUPT;
+
+            //如果被取消
             if (node.nextWaiter != null) // clean up if cancelled
                 unlinkCancelledWaiters();
+
             if (interruptMode != 0)
                 reportInterruptAfterWait(interruptMode);
         }
