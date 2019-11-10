@@ -1997,6 +1997,7 @@ public abstract class AbstractQueuedSynchronizer
          * Checks for interrupt, returning THROW_IE if interrupted
          * before signalled, REINTERRUPT if after signalled, or
          * 0 if not interrupted.
+         *
          * REINTERRUPT: 通过signal唤醒的
          * THROW_IE : 被interrupt打醒的
          * 0 ：操作系统根据线程调度算法唤醒的
