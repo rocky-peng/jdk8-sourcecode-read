@@ -322,6 +322,7 @@ public abstract class AbstractQueuedSynchronizer
      *      +------+  prev +-----+       +-----+
      * head |      | <---- |     | <---- |     |  tail
      *      +------+       +-----+       +-----+
+     *
      * </pre>
      *
      * <p>Insertion into a CLH queue requires only a single atomic
@@ -405,7 +406,7 @@ public abstract class AbstractQueuedSynchronizer
          * waitStatus value to indicate the next acquireShared should
          * unconditionally propagate
          */
-        //????
+        //没搞明白
         static final int PROPAGATE = -3;
 
         /**
@@ -464,6 +465,8 @@ public abstract class AbstractQueuedSynchronizer
          * ws为CANCELLED的几种情况：
          *   1. 在竞争锁的期间超时或者被中断
          *   2. 释放锁不成功
+         *
+         * 初始值为0
          */
         volatile int waitStatus;
 
@@ -474,9 +477,13 @@ public abstract class AbstractQueuedSynchronizer
          * cancellation of a predecessor, we short-circuit while
          * finding a non-cancelled one, which will always exist
          * because the head node is never cancelled: A node becomes
-         * head only as a result of successful acquire. A
+         * head onlacquireInterruptiblyy as a result of successful acquire. A
          * cancelled thread never succeeds in acquiring, and a thread only
          * cancels itself, not any other node.
+         *
+         *
+         * 进条件队列的时候赋值，出队列的时候才会赋值为空
+         *
          */
         volatile Node prev;
 
@@ -676,6 +683,10 @@ public abstract class AbstractQueuedSynchronizer
     /**
      * Wakes up node's successor, if one exists.
      *
+     * 找到node节点后的第一个非cancelled节点，并unpark它。
+     * 如果node节点后一个节点为null或者后一个节点状态为cancelled，
+     * 则从队尾开始找，直到找到最开始的一个非cancelled节点，这个节点即为node后的第一个非cancelled节点
+     *
      * @param node the node
      */
     private void unparkSuccessor(Node node) {
@@ -683,9 +694,27 @@ public abstract class AbstractQueuedSynchronizer
          * If status is negative (i.e., possibly needing signal) try
          * to clear in anticipation of signalling.  It is OK if this
          * fails or if status is changed by waiting thread.
+         *
+         *
          */
         int ws = node.waitStatus;
+
+        /**
+         * ws的值可能有以下几种可能：
+         * cancelled:
+         *   比如获取锁失败的时候会执行cancelAcquire. 这个方法会先把自己的状态改为cancelled，然后执行这个方法
+         * 0：
+         *   不可能为0。根据代码调用情况可以推断出来。
+         * signal:
+         *   表示需要signal下一个节点，当然可能这个值
+         * condition:
+         *   不可能，因为在同步队列中
+         * PROPAGATE:
+         *   没搞明白这个的含义
+         */
         if (ws < 0)
+
+            //如果失败没有关系
             compareAndSetWaitStatus(node, ws, 0);
 
         /*
@@ -694,6 +723,8 @@ public abstract class AbstractQueuedSynchronizer
          * traverse backwards from tail to find the actual
          * non-cancelled successor.
          */
+
+
         Node s = node.next;
         if (s == null || s.waitStatus > 0) {
             s = null;
@@ -831,9 +862,13 @@ public abstract class AbstractQueuedSynchronizer
      * Returns true if thread should block. This is the main signal
      * control in all acquire loops.  Requires that pred == node.prev.
      *
+     *
+     * 这个应该是prev，估计写错了
      * @param pred node's predecessor holding status
      * @param node the node
      * @return {@code true} if thread should block
+     *
+     * 只有前一个节点状态为signal的时候，我才park
      */
     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
         int ws = pred.waitStatus;
@@ -841,6 +876,9 @@ public abstract class AbstractQueuedSynchronizer
             /*
              * This node has already set status asking a release
              * to signal it, so it can safely park.
+             *
+             *
+             * 如果前一个节点的状态是：需要他来通知我，那我当然要park咯，所以返回true
              */
             return true;
         if (ws > 0) {
@@ -848,6 +886,9 @@ public abstract class AbstractQueuedSynchronizer
              * Predecessor was cancelled. Skip over predecessors and
              * indicate retry.
              */
+
+            //如果前一个节点取消了，则移除他
+            //注意这里是先改prev,后改next.  注意观察其他地方是不是也是这样。
             do {
                 node.prev = pred = pred.prev;
             } while (pred.waitStatus > 0);
@@ -858,6 +899,10 @@ public abstract class AbstractQueuedSynchronizer
              * need a signal, but don't park yet.  Caller will need to
              * retry to make sure it cannot acquire before parking.
              */
+
+            //ws共五个值：signal condition propagate 0 cancelled。
+            //这里因为是同步队列，所以不可能为condition
+            //把前一个节点的状态改为需要他signal我。
             compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
         }
         return false;
@@ -865,6 +910,8 @@ public abstract class AbstractQueuedSynchronizer
 
     /**
      * Convenience method to interrupt current thread.
+     *
+     * 自己中断自己。目的：产生一个中断标志位
      */
     static void selfInterrupt() {
         Thread.currentThread().interrupt();
@@ -874,6 +921,8 @@ public abstract class AbstractQueuedSynchronizer
      * Convenience method to park and then check if interrupted
      *
      * @return {@code true} if interrupted
+     *
+     * park自己，返回的时候返回park过程中是否产生中断，并清除中断标志位
      */
     private final boolean parkAndCheckInterrupt() {
         LockSupport.park(this);
@@ -1179,6 +1228,11 @@ public abstract class AbstractQueuedSynchronizer
      *         thrown in a consistent fashion for synchronization to work
      *         correctly.
      * @throws UnsupportedOperationException if shared mode is not supported
+     *
+     *
+     * 负数：表示获取共享锁失败；
+     * 0：表示获取共享锁成功，但是共享资源已经用完了。也就是表示：如果再来一个获取共享锁的兄弟，将不能获取成功
+     * 正数：表示获取共享锁成功，后头要获取共享锁的兄弟也可能成功。
      */
     protected int tryAcquireShared(int arg) {
         throw new UnsupportedOperationException();
@@ -1236,6 +1290,14 @@ public abstract class AbstractQueuedSynchronizer
      * #tryAcquire} until success.  This method can be used
      * to implement method {@link Lock#lock}.
      *
+     *
+     * 排它锁加锁过程：
+     * 尝试先加锁，如果不成功。把自己加入到同步队列中,然后循环做如下事情
+     * 1. 判断前一个节点是不是头结点，如果是，则尝试获得锁。如果获得成功，那就出队列并跳出循环
+     * 2. 如果不是头结点或者获取锁不成功，则判断我前一个节点的状态是不是signal。
+     * 3. 如果前一个节点的状态不是signal，则进行下一个循环
+     * 4. 如果前一个节点的状态是signal，则阻塞自己。当我醒来的时候，继续下个循环。
+     *
      * @param arg the acquire argument.  This value is conveyed to
      *        {@link #tryAcquire} but is otherwise uninterpreted and
      *        can represent anything you like.
@@ -1259,6 +1321,9 @@ public abstract class AbstractQueuedSynchronizer
      *        {@link #tryAcquire} but is otherwise uninterpreted and
      *        can represent anything you like.
      * @throws InterruptedException if the current thread is interrupted
+     *
+     *
+     * 和acquire方法同样的流程
      */
     public final void acquireInterruptibly(int arg)
             throws InterruptedException {
@@ -1284,6 +1349,8 @@ public abstract class AbstractQueuedSynchronizer
      * @param nanosTimeout the maximum number of nanoseconds to wait
      * @return {@code true} if acquired; {@code false} if timed out
      * @throws InterruptedException if the current thread is interrupted
+     *
+     *
      */
     public final boolean tryAcquireNanos(int arg, long nanosTimeout)
             throws InterruptedException {
@@ -1302,6 +1369,11 @@ public abstract class AbstractQueuedSynchronizer
      *        {@link #tryRelease} but is otherwise uninterpreted and
      *        can represent anything you like.
      * @return the value returned from {@link #tryRelease}
+     *
+     *
+     * 排它锁解锁过程：
+     *   先尝试解锁，如果解锁成功，则unpark同步队列中第一个非cancelled节点
+     *
      */
     public final boolean release(int arg) {
         if (tryRelease(arg)) {
@@ -1382,6 +1454,11 @@ public abstract class AbstractQueuedSynchronizer
      *        {@link #tryReleaseShared} but is otherwise uninterpreted
      *        and can represent anything you like.
      * @return the value returned from {@link #tryReleaseShared}
+     *
+     *
+     *
+     *
+     *
      */
     public final boolean releaseShared(int arg) {
         if (tryReleaseShared(arg)) {
