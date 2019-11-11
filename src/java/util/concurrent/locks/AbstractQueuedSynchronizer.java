@@ -406,7 +406,7 @@ public abstract class AbstractQueuedSynchronizer
          * waitStatus value to indicate the next acquireShared should
          * unconditionally propagate
          */
-        //没搞明白
+        //只在一个地方使用了，就是在doReleaseShared()方法中，把ws从0改为PROPAGATE，没有代码从PROPAGATE改为其他值
         static final int PROPAGATE = -3;
 
         /**
@@ -777,7 +777,8 @@ public abstract class AbstractQueuedSynchronizer
      * PROPAGATE status was set.
      *
      * @param node the node
-     * @param propagate the return value from a tryAcquireShared
+     * @param propagate the return value from a tryAcquireShared。
+     *                  可以理解为剩余共享资源的个数
      */
     private void setHeadAndPropagate(Node node, int propagate) {
         Node h = head; // Record old head for check below
@@ -798,8 +799,10 @@ public abstract class AbstractQueuedSynchronizer
          * racing acquires/releases, so most need signals now or soon
          * anyway.
          */
+
         if (propagate > 0 || h == null || h.waitStatus < 0 ||
             (h = head) == null || h.waitStatus < 0) {
+
             Node s = node.next;
             if (s == null || s.isShared())
                 doReleaseShared();
@@ -1392,9 +1395,21 @@ public abstract class AbstractQueuedSynchronizer
      * repeatedly blocking and unblocking, invoking {@link
      * #tryAcquireShared} until success.
      *
+     *
+     * 共享锁获取过程：
+     * 先尝试获得共享锁，如果获取不成功，则把自己加入到同步队列中，然后循环做如下事情
+     * 1. 判断前一个节点是不是头结点，如果是，则尝试获取锁，如果获取成功，则出队列并根据剩余共享资源的个数unpark后头的节点（看代码的实现是：如果获取成功，则出队列并释放共享锁）。
+     * 2. 如果不是头结点或者获取共享锁不成功，则判断我的前一个节点的状态是不是signal。
+     * 3. 如果前一个节点的状态不是是signal,则执行下个循环
+     * 4. 如果前一个节点的状态是signal，则park自己。当自己醒来的时候，执行下个循环。
+     *
+     *
      * @param arg the acquire argument.  This value is conveyed to
      *        {@link #tryAcquireShared} but is otherwise uninterpreted
      *        and can represent anything you like.
+     *
+     *
+     *
      */
     public final void acquireShared(int arg) {
         if (tryAcquireShared(arg) < 0)
@@ -1413,6 +1428,9 @@ public abstract class AbstractQueuedSynchronizer
      * otherwise uninterpreted and can represent anything
      * you like.
      * @throws InterruptedException if the current thread is interrupted
+     *
+     *
+     * 加锁过程和acquireShared一样的
      */
     public final void acquireSharedInterruptibly(int arg)
             throws InterruptedException {
