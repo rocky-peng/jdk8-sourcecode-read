@@ -332,6 +332,24 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * cheapest possible way to reduce systematic lossage, as well as
      * to incorporate impact of the highest bits that would otherwise
      * never be used in index calculations because of table bounds.
+     *
+     * 异或：a ^ b 就是判断 a和b是不是不同  不同为1，相同为0
+     *
+     *
+     *
+     * 和0与：0
+     * 和1与：原值
+     * 和0异或：原值
+     * 和1异或：取反
+     *
+     * 如果n为2的幂，(n-1) & x == 保留x的的低n位
+     *
+     * key.hashCode返回的是int值，int是32位的。
+     *
+     * h ^ (h >>> 16) 代码的意思就是： 把h的高16位和低16位进行
+     *
+     *
+     * 称之为绕动函数 把自己的高半区和低半区做异或，结果作为低半区，保留高16位
      */
     static final int hash(Object key) {
         int h;
@@ -373,6 +391,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * Returns a power of two size for the given target capacity.
+     *
+     * 返回大于等于输入参数的2的整数次幂
      */
     static final int tableSizeFor(int cap) {
         int n = cap - 1;
@@ -423,6 +443,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     // Additionally, if the table array has not been allocated, this
     // field holds the initial array capacity, or zero signifying
     // DEFAULT_INITIAL_CAPACITY.)
+    //扩容的阈值，size大于这个值才会扩容
     int threshold;
 
     /**
@@ -618,37 +639,79 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param key the key
      * @param value the value to put
      * @param onlyIfAbsent if true, don't change existing value
+     *                     absent: 缺席的，不存在的
      * @param evict if false, the table is in creation mode.
+     *
      * @return previous value, or null if none
+     *
+     *
+     *
+     * put的流程：
+     * 1. 计算key的hash :
+     * 2. 计算hash的下表i
+     * 3. 判断tab[i]是不是空的，如果是空的，则直接放进去。
+     * 4. 如果tab[i]不是空的，则判断tab[i]是不是树，如果是树，执行树的节点添加。
+     * 5. 如果tab[i]不是树，则遍历tab[i]这个链表，判断每个节点的key是不是要放进去的key equals。
+     * 6. 如果链表的某个节点和目标key相互equal，则根据参数执行value的替换。
+     * 基本流程就完了。
+     *
+     * 注意点：当任何一个链表的长度大于等于了树形化的阈值，则把整个table进行树形化
+     *
+     * 如果创建的新的节点，put之后则判断所有节点的数目是不是大于了扩容的阈值，如果是，则进行扩容
+     *
      */
     final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
                    boolean evict) {
-        Node<K,V>[] tab; Node<K,V> p; int n, i;
+        Node<K,V>[] tab;
+        Node<K,V> p;
+        int n, i;
+
+        //如果没有table或者table的长度为0，则通过resize函数准备table
         if ((tab = table) == null || (n = tab.length) == 0)
             n = (tab = resize()).length;
+
+        //计算下标： i = （n-1）& hash :取hash的低n位值，所以计算结果肯定小于等于n-1
+        //如果下表对应的位置空着，则直接放进去
         if ((p = tab[i = (n - 1) & hash]) == null)
             tab[i] = newNode(hash, key, value, null);
+
+        //否则
         else {
+            //e用来记录目标位置
             Node<K,V> e; K k;
+
+            //如果key和table[i]的key相同，则替换
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 e = p;
+
+            //如果table[i]是树
             else if (p instanceof TreeNode)
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+
+            //如果table[i]是链表
             else {
                 for (int binCount = 0; ; ++binCount) {
+
+                    //如果p是当前链表的最后一个
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
+
+                        //如果链表的节点数目大于等于了树形化的阈值
                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
                             treeifyBin(tab, hash);
                         break;
                     }
+
+                    //如果找到一个相同的key
                     if (e.hash == hash &&
                         ((k = e.key) == key || (key != null && key.equals(k))))
                         break;
                     p = e;
                 }
             }
+
+
             if (e != null) { // existing mapping for key
                 V oldValue = e.value;
                 if (!onlyIfAbsent || oldValue == null)
@@ -658,8 +721,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
         ++modCount;
+
+        //加入之后，如果node数目大于threshold
         if (++size > threshold)
             resize();
+
+
         afterNodeInsertion(evict);
         return null;
     }
