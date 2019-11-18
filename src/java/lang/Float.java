@@ -455,10 +455,13 @@ public final class Float extends Number implements Comparable<Float> {
      * Returns {@code true} if the specified number is a
      * Not-a-Number (NaN) value, {@code false} otherwise.
      *
+     * v != v 什么鬼？
+     *
      * @param   v   the value to be tested.
      * @return  {@code true} if the argument is NaN;
      *          {@code false} otherwise.
      */
+    //v != v 什么鬼
     public static boolean isNaN(float v) {
         return (v != v);
     }
