@@ -353,7 +353,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * h ^ (h >>> 16) 代码的意思就是： 把h的高16位和低16位进行
      *
      *
-     * 称之为绕动函数 把自己的高半区和低半区做异或，结果作为低半区，保留高16位
+     * 称之为绕动函数 把自己的高半区和低半区做异或，异或结果作为低半区，保留高半区
      */
     static final int hash(Object key) {
         int h;
@@ -652,7 +652,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * put的流程：
      * 1. 计算key的hash :
-     * 2. 计算hash的下表i
+     * 2. 计算hash的下标i
      * 3. 判断tab[i]是不是空的，如果是空的，则直接放进去。
      * 4. 如果tab[i]不是空的，则判断tab[i]是不是树，如果是树，执行树的节点添加。
      * 5. 如果tab[i]不是树，则遍历tab[i]这个链表，判断每个节点的key是不是要放进去的key equals。
