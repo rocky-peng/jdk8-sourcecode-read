@@ -506,6 +506,8 @@ public final class Class<T> implements java.io.Serializable,
      * @exception NullPointerException if the specified Class parameter is
      *            null.
      * @since JDK1.1
+     *
+     * 判断当前类是不是参数指定类的父类
      */
     public native boolean isAssignableFrom(Class<?> cls);
 
