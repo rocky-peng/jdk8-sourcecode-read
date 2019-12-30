@@ -234,14 +234,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * 是指数组的长度
      */
-    static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
+    static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka（又名） 16
 
     /**
      * The maximum capacity, used if a higher value is implicitly specified
      * by either of the constructors with arguments.
      * MUST be a power of two <= 1<<30.
      *
-     * 数组的长度
+     * 数组的最大长度
      */
     static final int MAXIMUM_CAPACITY = 1 << 30;
 

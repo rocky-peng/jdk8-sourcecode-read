@@ -507,6 +507,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * bounds for power of two table sizes, and is further required
      * because the top two bits of 32bit hash fields are used for
      * control purposes.
+     *
+     * 数组的最大长度
      */
     private static final int MAXIMUM_CAPACITY = 1 << 30;
 
@@ -525,6 +527,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * The default concurrency level for this table. Unused but
      * defined for compatibility with previous versions of this class.
+     *
+     * 1.8版本没有使用，是为了兼容之前的版本
      */
     private static final int DEFAULT_CONCURRENCY_LEVEL = 16;
 
