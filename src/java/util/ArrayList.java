@@ -122,6 +122,8 @@ public class ArrayList<E> extends AbstractList<E>
      * Shared empty array instance used for default sized empty instances. We
      * distinguish this from EMPTY_ELEMENTDATA to know how much to inflate when
      * first element is added.
+     *
+     * 标识是否是采用了new ArrayList()构造方法进行实例化，以便在后续扩容操作中进行判断
      */
     private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
 
@@ -247,7 +249,11 @@ public class ArrayList<E> extends AbstractList<E>
      * Increases the capacity to ensure that it can hold at least the
      * number of elements specified by the minimum capacity argument.
      *
+     * 默认情况下扩容是扩展为原来的1.5倍
+     *
      * @param minCapacity the desired minimum capacity
+     *
+     *
      */
     private void grow(int minCapacity) {
         // overflow-conscious code
@@ -307,6 +313,8 @@ public class ArrayList<E> extends AbstractList<E>
      * More formally, returns the lowest index <tt>i</tt> such that
      * <tt>(o==null&nbsp;?&nbsp;get(i)==null&nbsp;:&nbsp;o.equals(get(i)))</tt>,
      * or -1 if there is no such index.
+     *
+     * 如果o是null，则采用的==操作符。否则采用的是equals方法进行比较
      */
     public int indexOf(Object o) {
         if (o == null) {
@@ -346,6 +354,8 @@ public class ArrayList<E> extends AbstractList<E>
      * elements themselves are not copied.)
      *
      * @return a clone of this <tt>ArrayList</tt> instance
+     *
+     * 浅拷贝
      */
     public Object clone() {
         try {
@@ -400,6 +410,13 @@ public class ArrayList<E> extends AbstractList<E>
      *         is not a supertype of the runtime type of every element in
      *         this list
      * @throws NullPointerException if the specified array is null
+     *
+     * 看这个方法的实现，推荐如下的使用方式：
+     *
+     * List<String> list = new ArrayList(10);
+     * ...
+     * String[] strArray = list.toArray(new String[list.size]);
+     *
      */
     @SuppressWarnings("unchecked")
     public <T> T[] toArray(T[] a) {
