@@ -1846,7 +1846,7 @@ public abstract class AbstractQueuedSynchronizer
 
         /*
          * Splice onto queue and try to set waitStatus of predecessor to
-         * indicate that thread is (probably) waiting. If cancelled or
+         * indicate that thread is (probably  ) waiting. If cancelled or
          * attempt to set waitStatus fails, wake up to resync (in which
          * case the waitStatus can be transiently and harmlessly wrong).
          */
