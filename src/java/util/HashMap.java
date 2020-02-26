@@ -756,9 +756,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                      oldCap >= DEFAULT_INITIAL_CAPACITY)
                 newThr = oldThr << 1; // double threshold
         }
-        else if (oldThr > 0) // initial capacity was placed in threshold
+
+
+        else if (oldThr > 0)
+            //这种情况是采用了初始化容量的构造函数HashMap(int)或者HashMap(int, float)
+            // initial capacity was placed in threshold
             newCap = oldThr;
-        else {               // zero initial threshold signifies using defaults
+        else {
+            // zero initial threshold signifies using defaults
+            //这种情况是：采用了默认的构造函数
             newCap = DEFAULT_INITIAL_CAPACITY;
             newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
         }
@@ -772,20 +778,38 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
         table = newTab;
         if (oldTab != null) {
+            //遍历原来的每个桶（链表或红黑树）
             for (int j = 0; j < oldCap; ++j) {
                 Node<K,V> e;
+
+                //如果桶的首节点不为空
                 if ((e = oldTab[j]) != null) {
                     oldTab[j] = null;
+
+                    //如果第二个节点为空（也就是当前桶只有一个节点）
                     if (e.next == null)
+                        //直接重新计算index并赋值
                         newTab[e.hash & (newCap - 1)] = e;
+
+                    //如果首节点是树节点
                     else if (e instanceof TreeNode)
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
-                    else { // preserve order
+
+                    //乳沟首节点是链表节点
+                    else {
+                        // preserve order
                         Node<K,V> loHead = null, loTail = null;
                         Node<K,V> hiHead = null, hiTail = null;
                         Node<K,V> next;
+
+
                         do {
                             next = e.next;
+
+                            //这个do-while就是遍历链表每个节点，并做如下操作
+
+                            //这个if成立的条件：
+                            //2. e.hash==0：这个肯定是key为null的情况
                             if ((e.hash & oldCap) == 0) {
                                 if (loTail == null)
                                     loHead = e;
@@ -800,7 +824,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                     hiTail.next = e;
                                 hiTail = e;
                             }
+
                         } while ((e = next) != null);
+
+
                         if (loTail != null) {
                             loTail.next = null;
                             newTab[j] = loHead;
