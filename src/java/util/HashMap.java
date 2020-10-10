@@ -528,7 +528,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 float ft = ((float)s / loadFactor) + 1.0F;
                 int t = ((ft < (float)MAXIMUM_CAPACITY) ?
                          (int)ft : MAXIMUM_CAPACITY);
-                if (t > threshold)
+                if (t >     threshold)
                     threshold = tableSizeFor(t);
             }
             else if (s > threshold)
@@ -855,7 +855,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         //计算hash的index
         //判断tab[index] 是否为null
         //如果不是null,则把tab[index]这个链表转换为一个双向链表
-        //然后在进行树形化
+        //然后再进行树形化
         else if ((e = tab[index = (n - 1) & hash]) != null) {
             TreeNode<K,V> hd = null, tl = null;
             do {
