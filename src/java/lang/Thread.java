@@ -145,8 +145,6 @@ class Thread implements Runnable {
         registerNatives();
     }
 
-    //test
-
     private volatile String name;
     private int            priority;
     private Thread         threadQ;
