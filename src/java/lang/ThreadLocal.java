@@ -158,6 +158,9 @@ public class ThreadLocal<T> {
      */
     public T get() {
         Thread t = Thread.currentThread();
+
+        //如果new的是ThreadLocal，则执行的是ThreadLocal.getMap，
+        //如果new的是InheritableThreadLocal，则执行的是InheritableThreadLocal.getMap
         ThreadLocalMap map = getMap(t);
         if (map != null) {
             ThreadLocalMap.Entry e = map.getEntry(this);
